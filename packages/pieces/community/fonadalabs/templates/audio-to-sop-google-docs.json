@@ -1,0 +1,116 @@
+{
+  "name": "Turn recorded walkthroughs into SOP documents with FonadaLabs",
+  "summary": "Turn a recorded walkthrough into a Standard Operating Procedure in Google Docs.",
+  "description": "Receive audio_url, language and title, transcribe with the customer's FonadaLabs connection, draft a Standard Operating Procedure with an AI step that may only use what was said, and create a Google document. Choose the AI model and connect FonadaLabs and Google Docs before publishing.\n\nSetup: connect your FonadaLabs API key (audio is processed in the FonadaLabs cloud). For recordings longer than about 8 minutes, set the host variable AP_FLOW_TIMEOUT_SECONDS=3600 and set the FonadaLabs step's 'Action time budget' to 3300. The webhook receives JSON with audio_url (reachable from the worker) and language.\n\nChoose an AI model in the Ask AI step; the transcript is also sent to that AI provider. The prompt asks the model to use only what was said, but review the result before relying on it.",
+  "author": "hiyaa-atFonada",
+  "categories": [
+    "Productivity"
+  ],
+  "type": "CUSTOM",
+  "tags": [
+    {
+      "title": "Speech to text",
+      "color": "#8142E3"
+    }
+  ],
+  "flows": [
+    {
+      "displayName": "Recording to SOP document",
+      "schemaVersion": "28",
+      "valid": false,
+      "trigger": {
+        "name": "trigger",
+        "lastUpdatedDate": "2026-11-20T00:00:00.000Z",
+        "displayName": "Receive recording",
+        "type": "PIECE_TRIGGER",
+        "valid": true,
+        "settings": {
+          "pieceName": "@activepieces/piece-webhook",
+          "pieceVersion": "0.1.43",
+          "input": {
+            "authType": "none",
+            "authFields": {}
+          },
+          "propertySettings": {},
+          "triggerName": "catch_webhook"
+        },
+        "nextAction": {
+          "name": "step_1",
+          "lastUpdatedDate": "2026-11-20T00:00:00.000Z",
+          "displayName": "Transcribe recording",
+          "type": "PIECE",
+          "valid": false,
+          "settings": {
+            "pieceName": "@activepieces/piece-fonadalabs",
+            "pieceVersion": "0.2.0",
+            "input": {
+              "audioUrl": "{{trigger['output'].body.audio_url}}",
+              "language": "{{trigger['output'].body.language}}",
+              "recoverUpstream": true
+            },
+            "propertySettings": {},
+            "actionName": "transcribe_audio",
+            "errorHandlingOptions": {
+              "retryOnFailure": {
+                "value": false
+              },
+              "continueOnFailure": {
+                "value": false
+              }
+            }
+          },
+          "nextAction": {
+            "name": "step_2",
+            "lastUpdatedDate": "2026-11-20T00:00:00.000Z",
+            "displayName": "Draft from transcript",
+            "type": "PIECE",
+            "valid": false,
+            "settings": {
+              "pieceName": "@activepieces/piece-ai",
+              "pieceVersion": "0.16.0",
+              "input": {
+                "prompt": "Turn the transcript below into a Standard Operating Procedure in Markdown. Use only what the transcript states.\n\nSections: Purpose, Scope, Prerequisites, Numbered steps, Warnings, Open questions.\nKeep the steps in the order the speaker gave them. If a section has no support in the transcript, write 'Not stated in the recording' and list it under Open questions. Do not add steps, tools, roles, timings or safety rules that were not said.\n\nTranscript:\n{{step_1['output'].text}}",
+                "maxOutputTokens": 4000
+              },
+              "propertySettings": {},
+              "actionName": "askAi",
+              "errorHandlingOptions": {
+                "retryOnFailure": {
+                  "value": false
+                },
+                "continueOnFailure": {
+                  "value": false
+                }
+              }
+            },
+            "nextAction": {
+              "name": "step_3",
+              "lastUpdatedDate": "2026-11-20T00:00:00.000Z",
+              "displayName": "Create SOP document",
+              "type": "PIECE",
+              "valid": false,
+              "settings": {
+                "pieceName": "@activepieces/piece-google-docs",
+                "pieceVersion": "0.7.1",
+                "input": {
+                  "title": "{{trigger['output'].body.title}}",
+                  "body": "{{step_2['output']}}"
+                },
+                "propertySettings": {},
+                "actionName": "create_document",
+                "errorHandlingOptions": {
+                  "retryOnFailure": {
+                    "value": false
+                  },
+                  "continueOnFailure": {
+                    "value": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

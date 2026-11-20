@@ -20,7 +20,7 @@ Audio is uploaded to, and transcribed in, the FonadaLabs cloud. Do not send reco
 | Attempt timeout (seconds) | 20 | Abandon an attempt with no answer after this time plus 4 s per MB (≈32 s for a 240 s chunk). |
 | Retry upstream failures | off | Retry HTTP 502/503/504 and timed-out attempts up to 6 times per chunk. May incur duplicate charges. |
 | Upstream retry wait (seconds) | 30 | First wait after an upstream failure. It doubles per retry up to 120 s, with ±20% jitter, and pauses all workers. |
-| Action time budget (seconds) | 3300 | Stop cleanly, with checkpoints kept, before this time. Keep it a few minutes below `AP_FLOW_TIMEOUT_SECONDS`. |
+| Action time budget (seconds) | 540 | Stop cleanly, with checkpoints kept, before this time. The default is safe for the stock 600 s host timeout. For long recordings raise it to about 3300 together with `AP_FLOW_TIMEOUT_SECONDS=3600`. |
 
 ## Required Activepieces host setting for long recordings
 
@@ -30,7 +30,7 @@ Self-hosted Activepieces kills any flow run after `AP_FLOW_TIMEOUT_SECONDS` (def
 AP_FLOW_TIMEOUT_SECONDS=3600
 ```
 
-The API reads this value and passes it to workers in their settings, so one value covers both. Check it with `curl -s http://localhost:3017/api/v1/flags | grep -o '"FLOW_RUN_TIME_SECONDS":[0-9]*'`. Set **Action time budget** about 300 seconds below it. Then a slow run fails with a clear message and its checkpoints, instead of a generic `TIMEOUT`.
+The API reads this value and passes it to workers in their settings, so one value covers both. Check it with `curl -s http://localhost:3017/api/v1/flags | grep -o '"FLOW_RUN_TIME_SECONDS":[0-9]*'`. Set **Action time budget** about 300 seconds below it (3300 for 3600). The piece cannot read the host limit, so the budget is a separate setting: with the default 540 and a stock host, a slow run stops with a clear message and its checkpoints instead of a generic `TIMEOUT`, and with 3300 on a stock host it would be killed at 600 s. Activepieces templates cannot carry this host setting, so state it in any setup guide.
 
 ## Supported audio and the 25 MB limit
 
@@ -98,5 +98,26 @@ Follow the worker output for `[fonadalabs]` lines (`source_ready`, `chunks_prepa
 
 ## Example workflows
 
-- Webhook (audio URL) → **FonadaLabs: Transcribe Audio** → Google Docs (`{{step_1['output'].text}}`). See `examples/audio-to-google-docs.json`.
-- Audio URL or file → **FonadaLabs: Transcribe Audio** → CRM note or knowledge-store record.
+Import any of these from `examples/` with **Import flow**, then connect FonadaLabs (and the other apps) and publish. Each one starts with a webhook that receives JSON; `audio_url` must be reachable from the Activepieces worker.
+
+| File | Flow | Webhook fields |
+| --- | --- | --- |
+| `audio-to-google-docs.json` | Transcript → Google Docs | `audio_url`, `language`, `title` |
+| `audio-to-store.json` | Transcript → Store | `audio_url`, `language` |
+| `audio-to-crm-hubspot.json` | Transcript → AI call note → HubSpot note on the contact | `audio_url`, `language`, `contact_email` |
+| `audio-to-sop-google-docs.json` | Transcript → AI Standard Operating Procedure → Google Docs | `audio_url`, `language`, `title` |
+
+Notes for the two AI flows:
+
+- Choose an **AI model** in the **Ask AI** step. It is project-specific, so it cannot be shipped in the file. Until then the step is marked invalid.
+- The prompts tell the model to use only what the transcript says and to write "Not stated" instead of guessing. Models can still make mistakes, so have a person review a note or SOP before relying on it.
+- The transcript is sent to the AI provider you choose, in addition to FonadaLabs.
+- The HubSpot flow needs an existing contact with that email. If none is found, **Attach call note** fails. The transcript checkpoint is deleted once transcription succeeds, so re-triggering the flow transcribes the recording again and FonadaLabs bills it again. Create the contact first.
+- HubSpot notes have a size limit, so the flow attaches the AI summary, not the full transcript.
+- Set the host `AP_FLOW_TIMEOUT_SECONDS` and the FonadaLabs **Action time budget** for long recordings (see above). The AI step runs after transcription, so leave a few minutes of headroom.
+
+Flow structure and import logic were validated against the repository's template schema. The AI and HubSpot steps have not been run end to end.
+
+## Template files
+
+`templates/*.json` are the same four flows wrapped as `POST /v1/templates` request bodies (`name`, `summary`, `description`, `author`, `categories`, `tags`, `type`, `flows`). They are set to `"type": "CUSTOM"`; change it to `"SHARED"` for a shareable template. `OFFICIAL` templates cannot be created through the API of a self-hosted instance. The flows reference `@activepieces/piece-fonadalabs`, so the piece must be installed wherever the template is used. If you publish the piece under your own npm scope, change `pieceName` in the files to match.

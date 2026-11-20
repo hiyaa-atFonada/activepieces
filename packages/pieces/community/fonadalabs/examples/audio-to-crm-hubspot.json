@@ -1,0 +1,130 @@
+{
+  "name": "Transcribe recordings into HubSpot call notes with FonadaLabs",
+  "description": "Receive audio_url, language and contact_email, transcribe with the customer's FonadaLabs connection, draft a call note with an AI step, and attach it to the HubSpot contact with that email. Choose the AI model and connect FonadaLabs and HubSpot before publishing.",
+  "flows": [
+    {
+      "displayName": "Recording to HubSpot call note",
+      "schemaVersion": "28",
+      "valid": false,
+      "trigger": {
+        "name": "trigger",
+        "lastUpdatedDate": "2026-11-20T00:00:00.000Z",
+        "displayName": "Receive recording",
+        "type": "PIECE_TRIGGER",
+        "valid": true,
+        "settings": {
+          "pieceName": "@activepieces/piece-webhook",
+          "pieceVersion": "0.1.43",
+          "input": {
+            "authType": "none",
+            "authFields": {}
+          },
+          "propertySettings": {},
+          "triggerName": "catch_webhook"
+        },
+        "nextAction": {
+          "name": "step_1",
+          "lastUpdatedDate": "2026-11-20T00:00:00.000Z",
+          "displayName": "Transcribe recording",
+          "type": "PIECE",
+          "valid": false,
+          "settings": {
+            "pieceName": "@activepieces/piece-fonadalabs",
+            "pieceVersion": "0.2.0",
+            "input": {
+              "audioUrl": "{{trigger['output'].body.audio_url}}",
+              "language": "{{trigger['output'].body.language}}",
+              "recoverUpstream": true
+            },
+            "propertySettings": {},
+            "actionName": "transcribe_audio",
+            "errorHandlingOptions": {
+              "retryOnFailure": {
+                "value": false
+              },
+              "continueOnFailure": {
+                "value": false
+              }
+            }
+          },
+          "nextAction": {
+            "name": "step_2",
+            "lastUpdatedDate": "2026-11-20T00:00:00.000Z",
+            "displayName": "Draft from transcript",
+            "type": "PIECE",
+            "valid": false,
+            "settings": {
+              "pieceName": "@activepieces/piece-ai",
+              "pieceVersion": "0.16.0",
+              "input": {
+                "prompt": "Write a CRM call note from the transcript below. Use only what the transcript states.\n\nSummary: 2 to 4 sentences.\nDecisions: bullet list, or 'Not stated'.\nAction items: bullet list; name an owner or due date only if the speaker said one, otherwise 'Not stated'.\nDo not invent names, dates, amounts, commitments or sentiment.\n\nTranscript:\n{{step_1['output'].text}}",
+                "maxOutputTokens": 4000
+              },
+              "propertySettings": {},
+              "actionName": "askAi",
+              "errorHandlingOptions": {
+                "retryOnFailure": {
+                  "value": false
+                },
+                "continueOnFailure": {
+                  "value": false
+                }
+              }
+            },
+            "nextAction": {
+              "name": "step_3",
+              "lastUpdatedDate": "2026-11-20T00:00:00.000Z",
+              "displayName": "Find contact by email",
+              "type": "PIECE",
+              "valid": false,
+              "settings": {
+                "pieceName": "@activepieces/piece-hubspot",
+                "pieceVersion": "0.14.0",
+                "input": {
+                  "firstSearchPropertyName": "email",
+                  "firstSearchPropertyValue": "{{trigger['output'].body.contact_email}}"
+                },
+                "propertySettings": {},
+                "actionName": "find-contact",
+                "errorHandlingOptions": {
+                  "retryOnFailure": {
+                    "value": false
+                  },
+                  "continueOnFailure": {
+                    "value": false
+                  }
+                }
+              },
+              "nextAction": {
+                "name": "step_4",
+                "lastUpdatedDate": "2026-11-20T00:00:00.000Z",
+                "displayName": "Attach call note",
+                "type": "PIECE",
+                "valid": false,
+                "settings": {
+                  "pieceName": "@activepieces/piece-hubspot",
+                  "pieceVersion": "0.14.0",
+                  "input": {
+                    "noteBody": "{{step_2['output']}}",
+                    "associatedObjectType": "contact",
+                    "associatedObjectId": "{{step_3['output'].results[0].id}}"
+                  },
+                  "propertySettings": {},
+                  "actionName": "create_note",
+                  "errorHandlingOptions": {
+                    "retryOnFailure": {
+                      "value": false
+                    },
+                    "continueOnFailure": {
+                      "value": false
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

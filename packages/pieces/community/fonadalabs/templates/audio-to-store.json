@@ -1,0 +1,91 @@
+{
+  "name": "FonadaLabs audio to transcript store",
+  "summary": "Transcribe a recording URL and save the transcript in the Activepieces store.",
+  "description": "Receive a recording URL, transcribe it and persist text in Activepieces Store. Select your own FonadaLabs connection after import.\n\nSetup: connect your FonadaLabs API key (audio is processed in the FonadaLabs cloud). For recordings longer than about 8 minutes, set the host variable AP_FLOW_TIMEOUT_SECONDS=3600 and set the FonadaLabs step's 'Action time budget' to 3300. The webhook receives JSON with audio_url (reachable from the worker) and language.",
+  "author": "hiyaa-atFonada",
+  "categories": [
+    "Productivity"
+  ],
+  "type": "CUSTOM",
+  "tags": [
+    {
+      "title": "Speech to text",
+      "color": "#8142E3"
+    }
+  ],
+  "flows": [
+    {
+      "displayName": "FonadaLabs audio to transcript store",
+      "schemaVersion": "28",
+      "valid": false,
+      "trigger": {
+        "name": "trigger",
+        "lastUpdatedDate": "2026-11-19T00:00:00.000Z",
+        "displayName": "Receive recording URL",
+        "type": "PIECE_TRIGGER",
+        "valid": true,
+        "settings": {
+          "pieceName": "@activepieces/piece-webhook",
+          "pieceVersion": "0.1.43",
+          "triggerName": "catch_webhook",
+          "input": {
+            "authType": "none",
+            "authFields": {}
+          },
+          "propertySettings": {}
+        },
+        "nextAction": {
+          "name": "step_1",
+          "lastUpdatedDate": "2026-11-19T00:00:00.000Z",
+          "displayName": "Transcribe with FonadaLabs",
+          "type": "PIECE",
+          "valid": false,
+          "settings": {
+            "pieceName": "@activepieces/piece-fonadalabs",
+            "pieceVersion": "0.2.0",
+            "actionName": "transcribe_audio",
+            "input": {
+              "audioUrl": "{{trigger['output'].body.audio_url}}",
+              "language": "{{trigger['output'].body.language}}"
+            },
+            "propertySettings": {},
+            "errorHandlingOptions": {
+              "retryOnFailure": {
+                "value": false
+              },
+              "continueOnFailure": {
+                "value": false
+              }
+            }
+          },
+          "nextAction": {
+            "name": "step_2",
+            "lastUpdatedDate": "2026-11-19T00:00:00.000Z",
+            "displayName": "Save transcript",
+            "type": "PIECE",
+            "valid": true,
+            "settings": {
+              "pieceName": "@activepieces/piece-store",
+              "pieceVersion": "0.6.20",
+              "actionName": "put",
+              "input": {
+                "key": "{{trigger['output'].body.recording_id}}",
+                "value": "{{step_1.text}}",
+                "store_scope": "COLLECTION"
+              },
+              "propertySettings": {},
+              "errorHandlingOptions": {
+                "retryOnFailure": {
+                  "value": false
+                },
+                "continueOnFailure": {
+                  "value": false
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

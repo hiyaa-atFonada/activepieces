@@ -1,4 +1,4 @@
-import { createAction, createPiece, PieceAuth, PieceCategory, Property, Store, StoreScope } from '@activepieces/pieces-framework';
+import { createAction, createPiece, OutputSchema, PieceAuth, PieceCategory, Property, Store, StoreScope } from '@activepieces/pieces-framework';
 import { performance } from 'node:perf_hooks';
 import { fonadaAudio } from './lib/audio';
 import { fonadaClient } from './lib/client';
@@ -13,9 +13,33 @@ const DEFAULT_REQUEST_INTERVAL_SECONDS = 2;
 const DEFAULT_ATTEMPT_TIMEOUT_SECONDS = 20;
 const DEFAULT_UPSTREAM_RETRY_WAIT_SECONDS = 30;
 const MAX_UPSTREAM_RETRIES = 6;
-const DEFAULT_TIME_BUDGET_SECONDS = 3300;
+const DEFAULT_TIME_BUDGET_SECONDS = 540;
 const MAX_RATE_LIMIT_RETRIES = 3;
 const DOWNLOAD_TIMEOUT_MS = 600_000;
+
+const outputSchema: OutputSchema = {
+  fields: [
+    { key: 'text', label: 'Transcript' },
+    { key: 'chunks', label: 'Chunks', format: 'number' },
+    { key: 'reusedChunks', label: 'Chunks Reused From Checkpoint', format: 'number' },
+    { key: 'language_id', label: 'Language ID' },
+    { key: 'model', label: 'Model' },
+    {
+      key: 'metrics',
+      label: 'Run Metrics',
+      children: [
+        { key: 'sourceBytes', label: 'Source Bytes', format: 'number' },
+        { key: 'mode', label: 'Chunking Mode' },
+        { key: 'chunkCount', label: 'Chunk Count', format: 'number' },
+        { key: 'requestAttempts', label: 'Request Attempts', format: 'number' },
+        { key: 'conversionMs', label: 'Conversion (ms)', format: 'number' },
+        { key: 'asrMs', label: 'Transcription Time (ms)', format: 'number' },
+        { key: 'retryWaitMs', label: 'Retry Wait (ms)', format: 'number' },
+        { key: 'totalMs', label: 'Total (ms)', format: 'number' },
+      ],
+    },
+  ],
+};
 
 const fonadalabsAuth = PieceAuth.SecretText({
   displayName: 'FonadaLabs API Key',
@@ -28,6 +52,7 @@ const transcribeAudio = createAction({
   name: 'transcribe_audio',
   description: 'Transcribe audio with FonadaLabs Kapture V3 (cloud). Recordings above 24 MB (MP3 or WAV) are split into chunks, transcribed with bounded concurrency, and joined in the original order.',
   auth: fonadalabsAuth,
+  outputSchema,
   props: {
     file: Property.File({ displayName: 'Audio or Video File', required: false }),
     audioUrl: Property.ShortText({
@@ -79,7 +104,7 @@ const transcribeAudio = createAction({
     }),
     timeBudgetSeconds: Property.Number({
       displayName: 'Action time budget (seconds)',
-      description: `Stop cleanly, keeping checkpoints, before this many seconds. Keep it a few minutes below the host AP_FLOW_TIMEOUT_SECONDS. Default ${DEFAULT_TIME_BUDGET_SECONDS} s (for AP_FLOW_TIMEOUT_SECONDS=3600).`,
+      description: `Stop cleanly, keeping checkpoints, before this many seconds. Default ${DEFAULT_TIME_BUDGET_SECONDS} s, safe for the stock 600 s host flow timeout. For long recordings set the host AP_FLOW_TIMEOUT_SECONDS=3600 and this to about 3300.`,
       required: false,
       defaultValue: DEFAULT_TIME_BUDGET_SECONDS,
     }),

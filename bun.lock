@@ -3457,12 +3457,10 @@
     },
     "packages/pieces/community/fonadalabs": {
       "name": "@activepieces/piece-fonadalabs",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "dependencies": {
-        "@activepieces/pieces-common": "workspace:*",
         "@activepieces/pieces-framework": "workspace:*",
         "@audio/encode-mp3": "2.0.1",
-        "form-data": "4.0.1",
         "mpg123-decoder": "1.0.3",
       },
       "devDependencies": {

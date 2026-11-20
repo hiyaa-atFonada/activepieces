@@ -30,7 +30,7 @@
           "valid": false,
           "settings": {
             "pieceName": "@activepieces/piece-fonadalabs",
-            "pieceVersion": "0.1.0",
+            "pieceVersion": "0.2.0",
             "actionName": "transcribe_audio",
             "input": {
               "audioUrl": "{{trigger['output'].body.audio_url}}",

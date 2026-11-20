@@ -57,7 +57,7 @@ async function transcribeOneChunk({ chunk, index, chunkCount, language, send, po
   while (true) {
     if (shared.stop) return fail({ reason: 'stopped because another chunk failed' });
     const waited = await acquireStartSlot({ shared, policy, clock });
-    if (waited === undefined) return fail({ reason: 'stopped before the action time budget ran out' });
+    if (waited === undefined) return fail({ reason: `stopped before the action time budget ran out${BUDGET_HINT}` });
     if (shared.stop) return fail({ reason: 'stopped because another chunk failed' });
     if (stats.attempts > 0) stats.retryWaitMs += waited;
     else stats.pacingWaitMs += waited;
@@ -79,7 +79,7 @@ async function transcribeOneChunk({ chunk, index, chunkCount, language, send, po
       }
       stats.timeoutRetries++;
       const delayMs = upstreamDelayMs({ policy, retry: stats.upstreamRetries + stats.timeoutRetries });
-      if (!scheduleCooldown({ shared, policy, clock, delayMs })) return fail({ reason: `no response within ${Math.round(timeoutMs / 1000)} s; the retry wait would exceed the action time budget` });
+      if (!scheduleCooldown({ shared, policy, clock, delayMs })) return fail({ reason: `no response within ${Math.round(timeoutMs / 1000)} s; the retry wait would exceed the action time budget${BUDGET_HINT}` });
       log('chunk_retry_wait', { chunk: index + 1, status: null, cause: 'timeout', waitMs: delayMs, upstreamRetries: stats.upstreamRetries + stats.timeoutRetries });
       continue;
     }
@@ -93,7 +93,7 @@ async function transcribeOneChunk({ chunk, index, chunkCount, language, send, po
     const delayMs = retryDelayMs({ response, stats, policy });
     if (delayMs === undefined) return fail({ status: response.status, reason: providerMessage(response) });
     if (delayMs > MAX_SINGLE_WAIT_MS || !scheduleCooldown({ shared, policy, clock, delayMs })) {
-      return fail({ status: response.status, reason: `${providerMessage(response)}; the ${Math.round(delayMs / 1000)} s retry wait would exceed the action time budget` });
+      return fail({ status: response.status, reason: `${providerMessage(response)}; the ${Math.round(delayMs / 1000)} s retry wait would exceed the action time budget${BUDGET_HINT}` });
     }
     if (response.status === 429) stats.rateLimitRetries++;
     else stats.upstreamRetries++;
@@ -250,6 +250,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+const BUDGET_HINT = ' (to allow longer runs, raise "Action time budget" together with the host AP_FLOW_TIMEOUT_SECONDS)';
 const MIN_REQUEST_WINDOW_MS = 30_000;
 const ATTEMPT_TIMEOUT_PER_MB_MS = 4_000;
 const MAX_SINGLE_WAIT_MS = 3_600_000;

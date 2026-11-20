@@ -1,0 +1,90 @@
+{
+  "name": "Transcribe recordings into Google Docs with FonadaLabs",
+  "summary": "Turn a recording URL into a Google Doc transcript.",
+  "description": "Receive a direct audio URL, transcribe using the customer's FonadaLabs connection, and create a Google document. Configure connections before publishing.\n\nSetup: connect your FonadaLabs API key (audio is processed in the FonadaLabs cloud). For recordings longer than about 8 minutes, set the host variable AP_FLOW_TIMEOUT_SECONDS=3600 and set the FonadaLabs step's 'Action time budget' to 3300. The webhook receives JSON with audio_url (reachable from the worker) and language.",
+  "author": "hiyaa-atFonada",
+  "categories": [
+    "Productivity"
+  ],
+  "type": "CUSTOM",
+  "tags": [
+    {
+      "title": "Speech to text",
+      "color": "#8142E3"
+    }
+  ],
+  "flows": [
+    {
+      "displayName": "Recording to Google Docs",
+      "schemaVersion": "28",
+      "valid": false,
+      "trigger": {
+        "name": "trigger",
+        "lastUpdatedDate": "2026-11-19T00:00:00.000Z",
+        "displayName": "Receive recording",
+        "type": "PIECE_TRIGGER",
+        "valid": true,
+        "settings": {
+          "pieceName": "@activepieces/piece-webhook",
+          "pieceVersion": "0.1.43",
+          "input": {
+            "authType": "none",
+            "authFields": {}
+          },
+          "propertySettings": {},
+          "triggerName": "catch_webhook"
+        },
+        "nextAction": {
+          "name": "step_1",
+          "lastUpdatedDate": "2026-11-19T00:00:00.000Z",
+          "displayName": "Transcribe recording",
+          "type": "PIECE",
+          "valid": false,
+          "settings": {
+            "pieceName": "@activepieces/piece-fonadalabs",
+            "pieceVersion": "0.2.0",
+            "input": {
+              "audioUrl": "{{trigger['output'].body.audio_url}}",
+              "language": "{{trigger['output'].body.language}}"
+            },
+            "propertySettings": {},
+            "actionName": "transcribe_audio",
+            "errorHandlingOptions": {
+              "retryOnFailure": {
+                "value": false
+              },
+              "continueOnFailure": {
+                "value": false
+              }
+            }
+          },
+          "nextAction": {
+            "name": "step_2",
+            "lastUpdatedDate": "2026-11-19T00:00:00.000Z",
+            "displayName": "Create transcript document",
+            "type": "PIECE",
+            "valid": false,
+            "settings": {
+              "pieceName": "@activepieces/piece-google-docs",
+              "pieceVersion": "0.7.1",
+              "input": {
+                "title": "{{trigger['output'].body.title}}",
+                "body": "{{step_1['output'].text}}"
+              },
+              "propertySettings": {},
+              "actionName": "create_document",
+              "errorHandlingOptions": {
+                "retryOnFailure": {
+                  "value": false
+                },
+                "continueOnFailure": {
+                  "value": false
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}
