@@ -98,7 +98,25 @@
             }
           }
         }
-      }
+      },
+      "notes": [
+        {
+          "id": "fonadalabs-setup-audio-to-sop-google-docs",
+          "content": "### Setup\n1. **Transcribe recording:** select your FonadaLabs connection.\n2. **Draft from transcript:** choose an AI model. The transcript is also sent to that AI provider.\n3. **Create SOP document:** select your Google Docs connection.\n4. Publish, then send JSON to the webhook URL:\n```json\n{\"audio_url\": \"https://.../walkthrough.mp3\", \"language\": \"en\", \"title\": \"SOP: Onboarding\"}\n```\nThe AI is told to use only what was said. Review the SOP before relying on it.\n\n**Long recordings (over ~8 min):** set the host variable `AP_FLOW_TIMEOUT_SECONDS=3600` and the FonadaLabs step's **Action time budget** to `3300`.\n\nAudio is processed in the FonadaLabs cloud. Recordings above 24 MB must be MP3 or WAV.",
+          "ownerId": null,
+          "color": "yellow",
+          "position": {
+            "x": -520,
+            "y": 0
+          },
+          "size": {
+            "width": 440,
+            "height": 520
+          },
+          "createdAt": "2026-11-20T00:00:00.000Z",
+          "updatedAt": "2026-11-20T00:00:00.000Z"
+        }
+      ]
     }
   ]
 }

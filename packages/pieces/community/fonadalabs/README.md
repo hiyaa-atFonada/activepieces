@@ -104,7 +104,7 @@ Import any of these from `examples/` with **Import flow**, then connect FonadaLa
 | --- | --- | --- |
 | `audio-to-google-docs.json` | Transcript → Google Docs | `audio_url`, `language`, `title` |
 | `audio-to-store.json` | Transcript → Store | `audio_url`, `language` |
-| `audio-to-crm-hubspot.json` | Transcript → AI call note → HubSpot note on the contact | `audio_url`, `language`, `contact_email` |
+| `audio-to-crm-hubspot.json` | Find contact → (if found) transcript → AI call note → HubSpot note on the contact | `audio_url`, `language`, `contact_email` |
 | `audio-to-sop-google-docs.json` | Transcript → AI Standard Operating Procedure → Google Docs | `audio_url`, `language`, `title` |
 
 Notes for the two AI flows:
@@ -112,7 +112,7 @@ Notes for the two AI flows:
 - Choose an **AI model** in the **Ask AI** step. It is project-specific, so it cannot be shipped in the file. Until then the step is marked invalid.
 - The prompts tell the model to use only what the transcript says and to write "Not stated" instead of guessing. Models can still make mistakes, so have a person review a note or SOP before relying on it.
 - The transcript is sent to the AI provider you choose, in addition to FonadaLabs.
-- The HubSpot flow needs an existing contact with that email. If none is found, **Attach call note** fails. The transcript checkpoint is deleted once transcription succeeds, so re-triggering the flow transcribes the recording again and FonadaLabs bills it again. Create the contact first.
+- The HubSpot flow looks up the contact by `contact_email` first. If none matches, the **Contact found?** branch skips everything else, so nothing is sent to FonadaLabs or the AI provider and the run ends successfully with no note. Create the contact and re-send the webhook.
 - HubSpot notes have a size limit, so the flow attaches the AI summary, not the full transcript.
 - Set the host `AP_FLOW_TIMEOUT_SECONDS` and the FonadaLabs **Action time budget** for long recordings (see above). The AI step runs after transcription, so leave a few minutes of headroom.
 

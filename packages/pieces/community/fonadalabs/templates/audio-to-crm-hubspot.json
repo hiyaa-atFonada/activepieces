@@ -1,7 +1,7 @@
 {
   "name": "Transcribe recordings into HubSpot call notes with FonadaLabs",
   "summary": "Transcribe a call recording and attach an AI-drafted call note to the HubSpot contact.",
-  "description": "Receive audio_url, language and contact_email, transcribe with the customer's FonadaLabs connection, draft a call note with an AI step, and attach it to the HubSpot contact with that email. Choose the AI model and connect FonadaLabs and HubSpot before publishing.\n\nSetup: connect your FonadaLabs API key (audio is processed in the FonadaLabs cloud). For recordings longer than about 8 minutes, set the host variable AP_FLOW_TIMEOUT_SECONDS=3600 and set the FonadaLabs step's 'Action time budget' to 3300. The webhook receives JSON with audio_url (reachable from the worker) and language.\n\nChoose an AI model in the Ask AI step; the transcript is also sent to that AI provider. The prompt asks the model to use only what was said, but review the result before relying on it.",
+  "description": "Receive audio_url, language and contact_email, transcribe with the customer's FonadaLabs connection, draft a call note with an AI step, and attach it to the HubSpot contact with that email. The contact is looked up first; if no HubSpot contact has that email the run stops before any paid transcription or AI step. Choose the AI model and connect FonadaLabs and HubSpot before publishing.\n\nSetup: connect your FonadaLabs API key (audio is processed in the FonadaLabs cloud). For recordings longer than about 8 minutes, set the host variable AP_FLOW_TIMEOUT_SECONDS=3600 and set the FonadaLabs step's 'Action time budget' to 3300. The webhook receives JSON with audio_url (reachable from the worker) and language.\n\nChoose an AI model in the Ask AI step; the transcript is also sent to that AI provider. The prompt asks the model to use only what was said, but review the result before relying on it.",
   "author": "hiyaa-atFonada",
   "categories": [
     "Sales"
@@ -37,19 +37,18 @@
         "nextAction": {
           "name": "step_1",
           "lastUpdatedDate": "2026-11-20T00:00:00.000Z",
-          "displayName": "Transcribe recording",
+          "displayName": "Find contact by email",
           "type": "PIECE",
           "valid": false,
           "settings": {
-            "pieceName": "@activepieces/piece-fonadalabs",
-            "pieceVersion": "0.2.0",
+            "pieceName": "@activepieces/piece-hubspot",
+            "pieceVersion": "0.14.0",
             "input": {
-              "audioUrl": "{{trigger['output'].body.audio_url}}",
-              "language": "{{trigger['output'].body.language}}",
-              "recoverUpstream": true
+              "firstSearchPropertyName": "email",
+              "firstSearchPropertyValue": "{{trigger['output'].body.contact_email}}"
             },
             "propertySettings": {},
-            "actionName": "transcribe_audio",
+            "actionName": "find-contact",
             "errorHandlingOptions": {
               "retryOnFailure": {
                 "value": false
@@ -61,68 +60,49 @@
           },
           "nextAction": {
             "name": "step_2",
+            "displayName": "Contact found?",
+            "type": "ROUTER",
+            "valid": true,
             "lastUpdatedDate": "2026-11-20T00:00:00.000Z",
-            "displayName": "Draft from transcript",
-            "type": "PIECE",
-            "valid": false,
             "settings": {
-              "pieceName": "@activepieces/piece-ai",
-              "pieceVersion": "0.16.0",
-              "input": {
-                "prompt": "Write a CRM call note from the transcript below. Use only what the transcript states.\n\nSummary: 2 to 4 sentences.\nDecisions: bullet list, or 'Not stated'.\nAction items: bullet list; name an owner or due date only if the speaker said one, otherwise 'Not stated'.\nDo not invent names, dates, amounts, commitments or sentiment.\n\nTranscript:\n{{step_1['output'].text}}",
-                "maxOutputTokens": 4000
-              },
-              "propertySettings": {},
-              "actionName": "askAi",
-              "errorHandlingOptions": {
-                "retryOnFailure": {
-                  "value": false
+              "executionType": "EXECUTE_FIRST_MATCH",
+              "branches": [
+                {
+                  "branchName": "Contact found",
+                  "branchType": "CONDITION",
+                  "conditions": [
+                    [
+                      {
+                        "firstValue": "{{step_1['output'].total}}",
+                        "secondValue": "0",
+                        "operator": "NUMBER_IS_GREATER_THAN"
+                      }
+                    ]
+                  ]
                 },
-                "continueOnFailure": {
-                  "value": false
+                {
+                  "branchName": "No contact: stop before paid steps",
+                  "branchType": "FALLBACK"
                 }
-              }
+              ]
             },
-            "nextAction": {
-              "name": "step_3",
-              "lastUpdatedDate": "2026-11-20T00:00:00.000Z",
-              "displayName": "Find contact by email",
-              "type": "PIECE",
-              "valid": false,
-              "settings": {
-                "pieceName": "@activepieces/piece-hubspot",
-                "pieceVersion": "0.14.0",
-                "input": {
-                  "firstSearchPropertyName": "email",
-                  "firstSearchPropertyValue": "{{trigger['output'].body.contact_email}}"
-                },
-                "propertySettings": {},
-                "actionName": "find-contact",
-                "errorHandlingOptions": {
-                  "retryOnFailure": {
-                    "value": false
-                  },
-                  "continueOnFailure": {
-                    "value": false
-                  }
-                }
-              },
-              "nextAction": {
-                "name": "step_4",
+            "children": [
+              {
+                "name": "step_3",
                 "lastUpdatedDate": "2026-11-20T00:00:00.000Z",
-                "displayName": "Attach call note",
+                "displayName": "Transcribe recording",
                 "type": "PIECE",
                 "valid": false,
                 "settings": {
-                  "pieceName": "@activepieces/piece-hubspot",
-                  "pieceVersion": "0.14.0",
+                  "pieceName": "@activepieces/piece-fonadalabs",
+                  "pieceVersion": "0.2.0",
                   "input": {
-                    "noteBody": "{{step_2['output']}}",
-                    "associatedObjectType": "contact",
-                    "associatedObjectId": "{{step_3['output'].results[0].id}}"
+                    "audioUrl": "{{trigger['output'].body.audio_url}}",
+                    "language": "{{trigger['output'].body.language}}",
+                    "recoverUpstream": true
                   },
                   "propertySettings": {},
-                  "actionName": "create_note",
+                  "actionName": "transcribe_audio",
                   "errorHandlingOptions": {
                     "retryOnFailure": {
                       "value": false
@@ -131,12 +111,82 @@
                       "value": false
                     }
                   }
+                },
+                "nextAction": {
+                  "name": "step_4",
+                  "lastUpdatedDate": "2026-11-20T00:00:00.000Z",
+                  "displayName": "Draft from transcript",
+                  "type": "PIECE",
+                  "valid": false,
+                  "settings": {
+                    "pieceName": "@activepieces/piece-ai",
+                    "pieceVersion": "0.16.0",
+                    "input": {
+                      "prompt": "Write a CRM call note from the transcript below. Use only what the transcript states.\n\nSummary: 2 to 4 sentences.\nDecisions: bullet list, or 'Not stated'.\nAction items: bullet list; name an owner or due date only if the speaker said one, otherwise 'Not stated'.\nDo not invent names, dates, amounts, commitments or sentiment.\n\nTranscript:\n{{step_3['output'].text}}",
+                      "maxOutputTokens": 4000
+                    },
+                    "propertySettings": {},
+                    "actionName": "askAi",
+                    "errorHandlingOptions": {
+                      "retryOnFailure": {
+                        "value": false
+                      },
+                      "continueOnFailure": {
+                        "value": false
+                      }
+                    }
+                  },
+                  "nextAction": {
+                    "name": "step_5",
+                    "lastUpdatedDate": "2026-11-20T00:00:00.000Z",
+                    "displayName": "Attach call note",
+                    "type": "PIECE",
+                    "valid": false,
+                    "settings": {
+                      "pieceName": "@activepieces/piece-hubspot",
+                      "pieceVersion": "0.14.0",
+                      "input": {
+                        "noteBody": "{{step_4['output']}}",
+                        "associatedObjectType": "contact",
+                        "associatedObjectId": "{{step_1['output'].results[0].id}}"
+                      },
+                      "propertySettings": {},
+                      "actionName": "create_note",
+                      "errorHandlingOptions": {
+                        "retryOnFailure": {
+                          "value": false
+                        },
+                        "continueOnFailure": {
+                          "value": false
+                        }
+                      }
+                    }
+                  }
                 }
-              }
-            }
+              },
+              null
+            ]
           }
         }
-      }
+      },
+      "notes": [
+        {
+          "id": "fonadalabs-setup-audio-to-crm-hubspot",
+          "content": "### Setup\n1. **Find contact by email** and **Attach call note:** select your HubSpot connection.\n2. **Transcribe recording:** select your FonadaLabs connection.\n3. **Draft from transcript:** choose an AI model. The transcript is also sent to that AI provider.\n4. Publish, then send JSON to the webhook URL:\n```json\n{\"audio_url\": \"https://.../call.mp3\", \"language\": \"en\", \"contact_email\": \"jane@example.com\"}\n```\nIf no HubSpot contact has that email, **Contact found?** stops the run before any paid step. Create the contact, then re-send.\n\n**Long recordings (over ~8 min):** set the host variable `AP_FLOW_TIMEOUT_SECONDS=3600` and the FonadaLabs step's **Action time budget** to `3300`.\n\nAudio is processed in the FonadaLabs cloud. Recordings above 24 MB must be MP3 or WAV.",
+          "ownerId": null,
+          "color": "yellow",
+          "position": {
+            "x": -520,
+            "y": 0
+          },
+          "size": {
+            "width": 440,
+            "height": 520
+          },
+          "createdAt": "2026-11-20T00:00:00.000Z",
+          "updatedAt": "2026-11-20T00:00:00.000Z"
+        }
+      ]
     }
   ]
 }
