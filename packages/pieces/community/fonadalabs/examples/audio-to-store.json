@@ -34,7 +34,8 @@
             "actionName": "transcribe_audio",
             "input": {
               "audioUrl": "{{trigger['output'].body.audio_url}}",
-              "language": "{{trigger['output'].body.language}}"
+              "language": "{{trigger['output'].body.language}}",
+              "recoverUpstream": true
             },
             "propertySettings": {},
             "errorHandlingOptions": {
@@ -58,7 +59,7 @@
               "actionName": "put",
               "input": {
                 "key": "{{trigger['output'].body.recording_id}}",
-                "value": "{{step_1.text}}",
+                "value": "{{step_1['output'].text}}",
                 "store_scope": "COLLECTION"
               },
               "propertySettings": {},
