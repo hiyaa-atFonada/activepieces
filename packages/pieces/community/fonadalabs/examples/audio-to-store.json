@@ -1,0 +1,79 @@
+{
+  "name": "FonadaLabs audio to transcript store",
+  "description": "Receive a recording URL, transcribe it and persist text in Activepieces Store. Select your own FonadaLabs connection after import.",
+  "flows": [
+    {
+      "displayName": "FonadaLabs audio to transcript store",
+      "schemaVersion": "28",
+      "valid": false,
+      "trigger": {
+        "name": "trigger",
+        "lastUpdatedDate": "2026-11-19T00:00:00.000Z",
+        "displayName": "Receive recording URL",
+        "type": "PIECE_TRIGGER",
+        "valid": true,
+        "settings": {
+          "pieceName": "@activepieces/piece-webhook",
+          "pieceVersion": "0.1.43",
+          "triggerName": "catch_webhook",
+          "input": {
+            "authType": "none",
+            "authFields": {}
+          },
+          "propertySettings": {}
+        },
+        "nextAction": {
+          "name": "step_1",
+          "lastUpdatedDate": "2026-11-19T00:00:00.000Z",
+          "displayName": "Transcribe with FonadaLabs",
+          "type": "PIECE",
+          "valid": false,
+          "settings": {
+            "pieceName": "@activepieces/piece-fonadalabs",
+            "pieceVersion": "0.1.0",
+            "actionName": "transcribe_audio",
+            "input": {
+              "audioUrl": "{{trigger['output'].body.audio_url}}",
+              "language": "{{trigger['output'].body.language}}"
+            },
+            "propertySettings": {},
+            "errorHandlingOptions": {
+              "retryOnFailure": {
+                "value": false
+              },
+              "continueOnFailure": {
+                "value": false
+              }
+            }
+          },
+          "nextAction": {
+            "name": "step_2",
+            "lastUpdatedDate": "2026-11-19T00:00:00.000Z",
+            "displayName": "Save transcript",
+            "type": "PIECE",
+            "valid": true,
+            "settings": {
+              "pieceName": "@activepieces/piece-store",
+              "pieceVersion": "0.6.20",
+              "actionName": "put",
+              "input": {
+                "key": "{{trigger['output'].body.recording_id}}",
+                "value": "{{step_1.text}}",
+                "store_scope": "COLLECTION"
+              },
+              "propertySettings": {},
+              "errorHandlingOptions": {
+                "retryOnFailure": {
+                  "value": false
+                },
+                "continueOnFailure": {
+                  "value": false
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

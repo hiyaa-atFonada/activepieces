@@ -1,0 +1,21 @@
+{
+  "name": "@activepieces/piece-fonadalabs",
+  "version": "0.1.0",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && cp package.json dist/",
+    "lint": "eslint 'src/**/*.ts'",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@activepieces/pieces-common": "workspace:*",
+    "@activepieces/pieces-framework": "workspace:*",
+    "@audio/encode-mp3": "2.0.1",
+    "form-data": "4.0.1",
+    "mpg123-decoder": "1.0.3"
+  },
+  "devDependencies": {
+    "tslib": "2.6.2"
+  }
+}
